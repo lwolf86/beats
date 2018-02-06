@@ -744,7 +744,7 @@ func checkFreeDiskSpaceNotEnough(path string, p *Prospector) bool {
 	
 	usage := diskusage.NewDiskUsage(dirPath)
 	if usage.Free() < p.config.FreeDiskBytes {
-		logp.Info("Path: %s ,Free disk space: %s , less than config disk space: %s", dirPath, usage.Free(), p.config.FreeDiskBytes)
+		logp.Info("Path: %s ,Free disk space: %v , less than config disk space: %v", dirPath, usage.Free(), p.config.FreeDiskBytes)
 		return true
 	} else {
 		return false
