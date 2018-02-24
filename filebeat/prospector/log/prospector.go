@@ -18,6 +18,7 @@ import (
 	"github.com/elastic/beats/libbeat/common/atomic"
 	"github.com/elastic/beats/libbeat/logp"
 	"github.com/elastic/beats/libbeat/monitoring"
+	"github.com/elastic/beats/diskusage"
 )
 
 const (
@@ -392,6 +393,16 @@ func (p *Prospector) scan() {
 		files = getKeys(paths)
 	}
 
+	var isDiskNotEnough bool
+	isDiskNotEnough = false
+	if len(paths) > 0 {
+		if sortInfos == nil {
+			isDiskNotEnough = checkFreeDiskSpaceNotEnough(files[0], p)
+		} else {
+			isDiskNotEnough = checkFreeDiskSpaceNotEnough(sortInfos[0].path, p)
+		}
+	}
+
 	for i := 0; i < len(paths); i++ {
 
 		var path string
@@ -412,6 +423,15 @@ func (p *Prospector) scan() {
 		default:
 		}
 
+		//if disk space not enough, delete file 
+		if isDiskNotEnough {
+			err := os.Remove(path)
+			logp.Info("Disk free space less than %v, File deleted: %v, Error: %v", p.config.FreeDiskBytes, path, err)
+			
+			isDiskNotEnough = checkFreeDiskSpaceNotEnough(path, p)
+			continue
+		}
+
 		newState, err := getFileState(path, info, p)
 		if err != nil {
 			logp.Err("Skipping file %s due to error %s", path, err)
@@ -419,6 +439,13 @@ func (p *Prospector) scan() {
 
 		// Load last state
 		lastState := p.states.FindPrevious(newState)
+
+		// Delete all files which fall under delete_older
+		if p.isDeleteOlder(newState) {
+			if p.handleDeleteOlder(lastState, newState) {
+				continue
+			}
+		}
 
 		// Ignores all files which fall under ignore_older
 		if p.isIgnoreOlder(newState) {
@@ -502,6 +529,30 @@ func (p *Prospector) harvestExistingFile(newState file.State, oldState file.Stat
 	}
 }
 
+// handleDeleteOlder handles states which fall under delete older
+// Based on the state information it is decided if the state information has to be updated or not
+func (p *Prospector) handleDeleteOlder(lastState, newState file.State) bool {
+	logp.Debug("prospector", "Delete file because delete_older reached: %s", newState.Source)
+
+	if !lastState.IsEmpty() {
+		if !lastState.Finished {
+			logp.Info("File is falling under delete_older before harvesting is finished. Adjust your close_* settings: %s", newState.Source)
+			return false
+		} else {
+			if newState.Fileinfo.Size() != lastState.Offset {
+				return false
+			} else {
+		        	//Finished, and havester finished ,then delete file here
+				err := os.Remove(lastState.Source)
+				logp.Info("deleted older file: %v, Error: %v, oldoffset: %v, size:%v", lastState.Source, err, lastState.Offset, newState.Fileinfo.Size())
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // handleIgnoreOlder handles states which fall under ignore older
 // Based on the state information it is decided if the state information has to be updated or not
 func (p *Prospector) handleIgnoreOlder(lastState, newState file.State) error {
@@ -539,6 +590,21 @@ func (p *Prospector) handleIgnoreOlder(lastState, newState file.State) error {
 func (p *Prospector) isFileExcluded(file string) bool {
 	patterns := p.config.ExcludeFiles
 	return len(patterns) > 0 && harvester.MatchAny(patterns, file)
+}
+
+// isDeleteOlder checks if the given state reached delete_older
+func (p *Prospector) isDeleteOlder(state file.State) bool {
+	// delete_older is disable
+	if p.config.DeleteOlder == 0 {
+		return false
+	}
+
+	modTime := state.Fileinfo.ModTime()
+	if time.Since(modTime) > p.config.DeleteOlder {
+		return true
+	}
+
+	return false
 }
 
 // isIgnoreOlder checks if the given state reached ignore_older
@@ -664,4 +730,23 @@ func (p *Prospector) Stop() {
 
 	// stop all communication between harvesters and publisher pipeline
 	p.outlet.Close()
+}
+
+//Check if disk has enough free space
+func checkFreeDiskSpaceNotEnough(path string, p *Prospector) bool {
+	var dirPath string
+	
+	if p.config.FreeDiskBytes == 0 {
+		return false
+	}
+	dirPath = filepath.Dir(path)
+	logp.Debug("prospector", "Check free disk space for directory: %s", dirPath)
+	
+	usage := diskusage.NewDiskUsage(dirPath)
+	if usage.Free() < p.config.FreeDiskBytes {
+		logp.Info("Path: %s ,Free disk space: %v , less than config disk space: %v", dirPath, usage.Free(), p.config.FreeDiskBytes)
+		return true
+	} else {
+		return false
+	}
 }
