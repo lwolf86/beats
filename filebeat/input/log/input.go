@@ -578,8 +578,8 @@ func (p *Input) harvestExistingFile(newState file.State, oldState file.State) {
 
 // handleDeleteOlder handles states which fall under delete older
 // Based on the state information it is decided if the state information has to be updated or not
-func (p *Prospector) handleDeleteOlder(lastState, newState file.State) bool {
-	logp.Debug("prospector", "Delete file because delete_older reached: %s", newState.Source)
+func (p *Input) handleDeleteOlder(lastState, newState file.State) bool {
+	logp.Debug("input", "Delete file because delete_older reached: %s", newState.Source)
 
 	if !lastState.IsEmpty() {
 		if !lastState.Finished {
@@ -640,7 +640,7 @@ func (p *Input) isFileExcluded(file string) bool {
 }
 
 // isDeleteOlder checks if the given state reached delete_older
-func (p *Prospector) isDeleteOlder(state file.State) bool {
+func (p *Input) isDeleteOlder(state file.State) bool {
 	// delete_older is disable
 	if p.config.DeleteOlder == 0 {
 		return false
@@ -797,14 +797,14 @@ func (p *Input) Stop() {
 }
 
 //Check if disk has enough free space
-func checkFreeDiskSpaceNotEnough(path string, p *Prospector) bool {
+func checkFreeDiskSpaceNotEnough(path string, p *Input) bool {
 	var dirPath string
 	
 	if p.config.FreeDiskBytes == 0 {
 		return false
 	}
 	dirPath = filepath.Dir(path)
-	logp.Debug("prospector", "Check free disk space for directory: %s", dirPath)
+	logp.Debug("input", "Check free disk space for directory: %s", dirPath)
 	
 	usage := diskusage.NewDiskUsage(dirPath)
 	if usage.Free() < p.config.FreeDiskBytes {
