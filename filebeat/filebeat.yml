@@ -28,6 +28,20 @@ filebeat.inputs:
     - /var/log/*.log
     #- c:\programdata\elasticsearch\logs\*
 
+  # Delete files which were modified more then the defined timespan in the past.
+  # delete_older is disabled by default, so no files are deleted by setting it to 0.
+  # Time strings like 2h (2 hours), 5m (5 minutes) can be used.
+  delete_older: 4320h
+
+  # Minimun number of bytes, the free space of the disk in which the log file is located
+  # When free space of disk less than free_disk_bytes, log file will be deleted by modtime ascending
+  # The default is 0 , means no file will be deleted.
+  free_disk_bytes: 53687091200
+
+  scan.sort: modtime
+
+  encoding: utf-8
+
   # Exclude lines. A list of regular expressions to match. It drops the lines that are
   # matching any regular expression from the list.
   #exclude_lines: ['^DBG']

@@ -45,6 +45,7 @@ var (
 		// Input
 		Enabled:        true,
 		IgnoreOlder:    0,
+		DeleteOlder:    0,
 		ScanFrequency:  10 * time.Second,
 		CleanRemoved:   true,
 		HarvesterLimit: 0,
@@ -53,6 +54,7 @@ var (
 		ScanSort:       "",
 		ScanOrder:      "asc",
 		RecursiveGlob:  true,
+		FreeDiskBytes:  0,
 
 		// Harvester
 		BufferSize: 16 * humanize.KiByte,
@@ -82,6 +84,7 @@ type config struct {
 	Enabled        bool            `config:"enabled"`
 	ExcludeFiles   []match.Matcher `config:"exclude_files"`
 	IgnoreOlder    time.Duration   `config:"ignore_older"`
+	DeleteOlder    time.Duration   `config:"delete_older"`
 	Paths          []string        `config:"paths"`
 	ScanFrequency  time.Duration   `config:"scan_frequency" validate:"min=0,nonzero"`
 	CleanRemoved   bool            `config:"clean_removed"`
@@ -89,6 +92,7 @@ type config struct {
 	Symlinks       bool            `config:"symlinks"`
 	TailFiles      bool            `config:"tail_files"`
 	RecursiveGlob  bool            `config:"recursive_glob.enabled"`
+	FreeDiskBytes  uint64          `config:"free_disk_bytes" validate:"min=0"`
 
 	// Harvester
 	BufferSize int    `config:"harvester_buffer_size"`
