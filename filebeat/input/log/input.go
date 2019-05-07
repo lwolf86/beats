@@ -595,6 +595,10 @@ func (p *Input) handleDeleteOlder(lastState, newState file.State) bool {
 				return true
 			}
 		}
+	} else {
+		err := os.Remove(newState.Source)
+		logp.Info("deleted older file: %v, Error: %v, oldoffset: %v, size:%v", newState.Source, err, newState.Offset, newState.Fileinfo.Size())
+		return true
 	}
 
 	return false
